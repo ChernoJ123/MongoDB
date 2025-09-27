@@ -4,48 +4,52 @@ using Testcontainers.MongoDb;
 using MongoDBConnector;
 using Xunit;
 
-public class MongoDbServiceTests : IAsyncLifetime
+public class MongoConnectionHelperTests : IAsyncLifetime
 {
-    private readonly MongoDbContainer _mongoContainer;
+    private readonly MongoDbContainer _container;
 
-    public MongoDbServiceTests()
+    public MongoConnectionHelperTests()
     {
-        _mongoContainer = new MongoDbBuilder()
+        _container = new MongoDbBuilder()
             .WithImage("mongo:7")
-            .WithCleanUp(true)
+            .WithCleanUp(true)   // remove container after tests
             .Build();
     }
 
     /// <summary>
-    /// Starts the container and waits until MongoDB actually responds to ping.
-    /// We poll up to a timeout to avoid flaky failures when MongoDB is still initializing.
+    /// Start MongoDB container before running tests.
     /// </summary>
     public async Task InitializeAsync()
     {
-        await _mongoContainer.StartAsync();
+        await _container.StartAsync();
     }
 
+    /// <summary>
+    /// Stop and clean up MongoDB container after tests.
+    /// </summary>
     public async Task DisposeAsync()
     {
-        await _mongoContainer.DisposeAsync();
+        await _container.DisposeAsync();
     }
 
-    [Fact(DisplayName = "PingAsync returns true when MongoDB container is up")]
-    public async Task PingAsync_ReturnsTrue_WhenDatabaseIsUp()
+    [Fact(DisplayName = "CheckConnectionAsync should return true when MongoDB is available")]
+    public async Task CheckConnectionAsync_ShouldReturnTrue_WhenMongoIsRunning()
     {
-        var connector = new MongoDbService(_mongoContainer.GetConnectionString());
-        bool result = await connector.PingAsync();
-        Assert.True(result);
+        var service = new MongoConnectionHelper(_container.GetConnectionString());
+
+        var isConnected = await service.CheckConnectionAsync();
+
+        Assert.True(isConnected);
     }
 
-    [Fact(DisplayName = "PingAsync returns false when connection string is invalid / server not reachable")]
-    public async Task PingAsync_ReturnsFalse_WhenConnectionStringInvalid()
+    [Fact(DisplayName = "CheckConnectionAsync should return false for invalid connection string")]
+    public async Task CheckConnectionAsync_ShouldReturnFalse_WhenUsingBadConnection()
     {
-        var badConnectionString = "mongodb://localhost:12345";
-        var connector = new MongoDbService(badConnectionString);
+        const string invalidUri = "mongodb://localhost:12345";
+        var service = new MongoConnectionHelper(invalidUri);
 
-        bool result = await connector.PingAsync().ConfigureAwait(false);
+        var isConnected = await service.CheckConnectionAsync();
 
-        Assert.False(result);
+        Assert.False(isConnected);
     }
 }
