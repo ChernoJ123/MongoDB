@@ -1,4 +1,4 @@
-﻿using System;
+﻿ using System;
 using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -6,44 +6,44 @@ using MongoDB.Driver;
 namespace MongoDBConnector
 {
     /// <summary>
-    /// Provides a lightweight MongoDB connectivity helper.
-    /// - Construct with a Mongo connection string.
-    /// - PingAsync() issues a { ping: 1 } command to verify connectivity.
+    /// A simple helper class for checking MongoDB connectivity.
     /// </summary>
-    public class MongoDbService
+    public class MongoConnectionHelper
     {
-        private readonly IMongoClient _client;
+        private readonly MongoClient _mongoClient;
 
         /// <summary>
-        /// Create a service with the provided MongoDB connection string.
+        /// Initialize with a MongoDB connection string.
         /// </summary>
-        /// <param name="connectionString">A MongoDB connection string (e.g. "mongodb://localhost:27017")</param>
-        public MongoDbService(string connectionString)
+        /// <param name="connectionUri">MongoDB URI, e.g. "mongodb://localhost:27017"</param>
+        public MongoConnectionHelper(string connectionUri)
         {
-            if (string.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrEmpty(connectionUri))
             {
-                throw new ArgumentException("connectionString must not be null or empty.", nameof(connectionString));
+                throw new ArgumentNullException(nameof(connectionUri), "Connection string cannot be empty.");
             }
 
-            _client = new MongoClient(connectionString);
+            _mongoClient = new MongoClient(connectionUri);
         }
 
         /// <summary>
-        /// Pings the MongoDB server to verify connectivity.
-        /// Returns true if successful, false otherwise.
-        /// This method catches exceptions and returns false on failure (simple contract for tests).
+        /// Attempts to ping the server to confirm connectivity.
+        /// Returns true if the server responds, false otherwise.
         /// </summary>
-        public async Task<bool> PingAsync()
+        public async Task<bool> CheckConnectionAsync()
         {
             try
             {
-                var database = _client.GetDatabase("admin");
-                var command = new BsonDocument("ping", 1);
-                await database.RunCommandAsync<BsonDocument>(command).ConfigureAwait(false);
+                var adminDb = _mongoClient.GetDatabase("admin");
+                var pingCommand = new BsonDocument { { "ping", 1 } };
+
+                // Send command to MongoDB
+                await adminDb.RunCommandAsync<BsonDocument>(pingCommand);
                 return true;
             }
-            catch
+            catch (Exception)
             {
+                // Any error means connectivity check failed
                 return false;
             }
         }
